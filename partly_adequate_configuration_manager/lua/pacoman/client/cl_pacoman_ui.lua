@@ -5,10 +5,10 @@ local col_base_darkest = {r = 20, g = 20, b = 20, a = 255}
 local col_text = {r = 255, g = 255, b = 255, a = 200}
 
 -- images and icons
-local ic_setting = Material("vgui/pam/ic_setting")
-local ic_namespace = Material("vgui/pam/ic_namespace")
-local ic_add = Material("vgui/pam/ic_add")
-local ic_remove = Material("vgui/pam/ic_remove")
+local ic_setting = Material("vgui/pacoman/ic_setting")
+local ic_namespace = Material("vgui/pacoman/ic_namespace")
+local ic_add = Material("vgui/pacoman/ic_add")
+local ic_remove = Material("vgui/pacoman/ic_remove")
 
 -- namespace types
 local CLIENT_SETTING = 0

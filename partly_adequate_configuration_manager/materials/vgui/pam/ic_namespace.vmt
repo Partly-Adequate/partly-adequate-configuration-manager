@@ -1,6 +1,6 @@
 "UnlitGeneric"
 {
- "$basetexture" "vgui/pam/ic_namespace"
+ "$basetexture" "vgui/pacoman/ic_namespace"
  "$vertexcolor" 1
  "$vertexalpha" 1
  "$translucent" 1
