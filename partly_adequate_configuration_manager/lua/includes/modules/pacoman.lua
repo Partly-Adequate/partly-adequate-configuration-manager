@@ -1846,9 +1846,14 @@ else
 	net.Receive("PACOMAN_StateRequest", FullStateReceived)
 
 	---
-	-- Requests the server to send the full state (all Game_Properties and Settings)
+	-- Checks if the server uses Pacoman and requests the server to send the full state (all Game_Properties and Settings)
 	-- @local
 	local function RequestFullState()
+		if util.NetworkStringToID("PACOMAN_StateRequest") == 0 then
+			ErrorNoHalt("Pacoman isn't used by this server\n");
+			return;
+		end
+
 		net.Start("PACOMAN_StateRequest")
 		net.SendToServer()
 	end
