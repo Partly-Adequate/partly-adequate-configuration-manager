@@ -1574,6 +1574,11 @@ else
 		local setting_id = OverrideIDToClientSettingID(full_id)
 		overrides[setting_id] = true
 
+		if not all_settings[setting_id] then
+			ErrorNoHalt("[PACOMAN] Attempted to add a Client override for a Setting that doesn't exist! (" .. full_id .. ")\n")
+			return
+		end
+
 		setting.CallCallbacks = function(s)
 			-- call callbacks for self
 			local new_value = s.active_value
@@ -1596,7 +1601,9 @@ else
 		overrides[setting_id] = nil
 
 		-- call callbacks for original setting
-		all_settings[setting_id]:CallCallbacks()
+		if all_settings[setting_id] then
+			all_settings[setting_id]:CallCallbacks()
+		end
 	end
 
 	client_overrides.OnSettingAdded = OnClientOverrideAdded
@@ -1622,7 +1629,7 @@ else
 	function RequestOverrideRemoval(setting)
 		net.Start("PACOMAN_ChangeRequest")
 		net.WriteUInt(1, 3)
-		net.WriteString(ClientSettingIDToOverrideID(setting.full_id))
+		net.WriteString(setting.full_id)
 		net.SendToServer()
 	end
 
