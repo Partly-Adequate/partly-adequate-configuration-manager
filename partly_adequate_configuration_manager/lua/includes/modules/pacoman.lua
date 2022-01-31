@@ -297,10 +297,16 @@ local types = {}
 -- @param string id the new Type's id
 -- @param[opt] function is_value_valid a function that can be used to determine if a value is of the new Type
 -- @param[opt] function compare_values a function that can be used to compare two values of the new Type (a <= b)
--- @note won't do anything when a type with the id already exists
+-- @note If a type with the same name already exists, it will return the old type.
 -- @realm shared
 function RegisterType(id, is_value_valid, serialize, deserialize, compare_values)
-	if types[id] then return end
+	local old_type = types[id]
+
+	if old_type then
+		ErrorNoHalt("[PACOMAN] Type with id '" .. id .. "' already exists.\n")
+		return old_type
+	end
+
 	local type = Type:Create(id, is_value_valid, serialize, deserialize, compare_values)
 
 	types[id] = type
@@ -449,7 +455,12 @@ end
 -- @note value has to be valid in regards to the specified Type
 -- @realm shared
 function RegisterGameProperty(id, gp_type, value)
-	if game_property_indices[id] then return end
+	old_gp_index = game_property_indices[id]
+
+	if old_gp_index then
+		ErrorNoHalt("[PACOMAN] Game Property with id '" .. id .. "' already exists.\n")
+		return game_properties[old_gp_index]
+	end
 
 	local game_property = Game_Property:Create(id, gp_type, value)
 
@@ -673,8 +684,8 @@ function Setting:AddSource(source_id, value)
 
 	local setting = self:GetSource(source_id)
 	if setting then
-		ErrorNoHalt("Setting with id '" .. setting.full_id .. "' already exists. It will be overriden!\n")
-		self:RemoveSource(source_id)
+		ErrorNoHalt("[PACOMAN] Setting with id '" .. setting.full_id .. "' already exists.\n")
+		return setting
 	end
 
 	-- add new source
@@ -846,9 +857,10 @@ function Namespace:Create(path_id, id)
 end
 
 ---
--- Adds a child Namespace to this Namespace
--- @param Namespace child the Namespace to adopt
--- @note If a child with the same name already exists within this Namespace's children, it won't be adopted.
+-- Creates a new child Namespace for this Namespace
+-- @param string child_id the id of the new Namespace
+-- @return Namespace the new Namespace
+-- @note If a child with the same name already exists within this Namespace's children, it will return the old child.
 function Namespace:AddChild(child_id)
 	local child = self:GetChild(child_id)
 	if child then return child end
@@ -892,12 +904,12 @@ end
 -- @param string setting_id the id of the setting to add
 -- @param Type s_type the type of the setting
 -- @param any value the value of the setting
--- @note If a Setting with the same name/identifier already exists within this Namespace's Settings, it will be overriden.
+-- @note If a Setting with the same name already exists within this Namespace's Settings, it will return the old setting.
 function Namespace:AddSetting(setting_id, s_type, value)
 	local setting = self:GetSetting(setting_id)
 	if setting then
-		ErrorNoHalt("Setting with id '" .. setting.full_id .. "' already exists. It will be overriden!\n")
-		self:RemoveSetting(setting_id)
+		ErrorNoHalt("[PACOMAN] Setting with id '" .. setting.full_id .. "' already exists.\n")
+		return setting
 	end
 
 	local index = #self.settings + 1
@@ -1849,11 +1861,6 @@ else
 	-- Checks if the server uses Pacoman and requests the server to send the full state (all Game_Properties and Settings)
 	-- @local
 	local function RequestFullState()
-		if util.NetworkStringToID("PACOMAN_StateRequest") == 0 then
-			ErrorNoHalt("Pacoman isn't used by this server\n");
-			return;
-		end
-
 		net.Start("PACOMAN_StateRequest")
 		net.SendToServer()
 	end
