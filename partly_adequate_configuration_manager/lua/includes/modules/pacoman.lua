@@ -906,8 +906,10 @@ end
 -- @param string setting_id the id of the setting to add
 -- @param Type s_type the type of the setting
 -- @param any value the value of the setting
+-- @param string description the description of the setting
 -- @note If a Setting with the same name already exists within this Namespace's Settings, it will return the old setting.
-function Namespace:AddSetting(setting_id, s_type, value)
+-- @note the description can be nil.
+function Namespace:AddSetting(setting_id, s_type, value, description)
 	local setting = self:GetSetting(setting_id)
 	if setting then
 		ErrorNoHalt("[PACOMAN] Setting with id '" .. setting.full_id .. "' already exists.\n")
@@ -916,7 +918,7 @@ function Namespace:AddSetting(setting_id, s_type, value)
 
 	local index = #self.settings + 1
 
-	setting = Setting:Create(self.full_id, setting_id, s_type, value)
+	setting = Setting:Create(self.full_id, setting_id, s_type, value, description)
 
 	if not setting then return end
 
@@ -1094,6 +1096,7 @@ if SERVER then
 		net.WriteString(setting.id)
 		net.WriteString(s_type.id)
 		net.WriteString(s_type:Serialize(setting.value))
+		net.WriteString(setting.description and setting.description or "")
 		if ply then
 			net.Send(ply)
 		else
@@ -1580,6 +1583,8 @@ else
 			CallCallbacks(setting_id, new_value)
 		end
 
+		setting.description = all_settings[setting_id].description
+
 		-- call callbacks for original setting
 		CallCallbacks(setting_id, self.active_value)
 	end
@@ -1739,9 +1744,15 @@ else
 		local value = s_type:Deserialize(net.ReadString())
 		if value == nil then return end
 
+		local description = net.ReadString()
+
+		if description == "" then
+			description = nil
+		end
+
 		local parent = all_namespaces[full_parent_id]
 		if parent then
-			parent:AddSetting(id, s_type, value)
+			parent:AddSetting(id, s_type, value, description)
 			return
 		end
 
