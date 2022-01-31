@@ -503,9 +503,10 @@ Setting.__index = Setting
 -- @param string id the name/identifier of this Setting
 -- @param Type s_type the Type of this Setting's value
 -- @param any value the value of this Setting
+-- @param string description the description of this setting
 -- @return the new Setting
 -- @note if the value doesn't fit the Type it will return nil
-function Setting:Create(path_id, id, s_type, value)
+function Setting:Create(path_id, id, s_type, value, description)
 	if not s_type:IsValueValid(value) then return end
 
 	local setting = {}
@@ -517,6 +518,7 @@ function Setting:Create(path_id, id, s_type, value)
 	setting.full_id = full_id
 	setting.type = s_type
 	setting.value = value
+	setting.description = description
 	setting.active_value = value
 	setting.active_source_id = nil
 	setting.sources = {}
@@ -691,7 +693,7 @@ function Setting:AddSource(source_id, value)
 	-- add new source
 	local index = #self.sources + 1
 
-	local source_setting = Setting:Create(self.full_id, source_id, s_type, value)
+	local source_setting = Setting:Create(self.full_id, source_id, s_type, value, self.description)
 
 	if not source_setting then return end
 
