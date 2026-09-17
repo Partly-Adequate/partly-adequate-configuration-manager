@@ -366,6 +366,42 @@ local function DeserializeAny(str)
 	return deserialized and deserialized.value
 end
 
+---
+-- serializes colors
+-- @param color the color to serialize
+-- @return string the serialized color
+-- @note uses color:ToHex internally
+local function SerializeColor(col)
+	return "#" .. col:ToHex(false)
+end
+
+---
+-- deserializes colors in hex format regardless of the '#'-char or alpha
+-- @param string the color to deserialize
+-- @return color the deserialized color
+-- @note uses HexToColor internally
+local function DeserializeColor(str)
+	str = string.TrimRight(str)
+
+	if(str[1] == "#") then
+		str = string.TrimLeft(str, '#')
+	end
+
+	if(string.len(str) == 6) then
+		str = str .. "ff"
+	end
+
+	if(string.len(str) ~= 8) then
+		return nil
+	end
+
+	if(tonumber(str, 16) == nil) then
+		return nil
+	end
+
+	return HexToColor(str)
+end
+
 -- @TypeText Type describes all types of values
 TYPE_ANY = RegisterType("any", nil, SerializeAny, DeserializeAny)
 -- @TypeText Type describes strings
@@ -378,6 +414,8 @@ TYPE_NUMBER = RegisterType("number", isnumber, tostring, tonumber, CompareNumber
 TYPE_PERCENTAGE = RegisterType("percentage", IsPercentage, tostring, tonumber, CompareNumber)
 -- @TypeText Type describes integers
 TYPE_INTEGER = RegisterType("integer", IsInteger, tostring, tonumber, CompareNumber)
+-- @TypeText Type describes colors
+TYPE_COLOR = RegisterType("color", IsColor, SerializeColor, DeserializeColor)
 
 -- Game_Property class
 local Game_Property = {}
