@@ -235,6 +235,48 @@ function Type:Create(id, is_value_valid, serialize, deserialize, compare_values)
 end
 
 ---
+-- creates a new <code>Type</code>
+-- @param string id the new <code>Type</code>'s id
+-- @param table The string values this enum contains initially
+-- @return Type the new type
+-- @realm shared
+function Type:CreateEnum(id, values)
+	new_type = {}
+	setmetatable(new_type, self)
+
+	new_type.id = id
+	new_type.serialize = tostring
+	new_type.deserialize = tostring
+	new_type.compare_values = nil
+
+	new_type.is_enum = true
+	new_type.default_value = default_value
+	new_type.values = {}
+	new_type.value_indices = {}
+
+	for i = 1, #values do
+		new_type.values[i] = values[i]
+		new_type.value_indices[values[i]] = i
+	end
+
+	new_type.is_value_valid = function(value)
+		return new_type.value_indices[value] or false
+	end
+
+	new_type.AddValue = function(self, value)
+		if self.value_indices[value] then
+			return false
+		end
+		local index = #self.values + 1
+		self.values[index] = value
+		self.value_indices[value] = index
+		return true
+	end
+
+	return new_type
+end
+
+---
 -- @return string this <code>Type</code>'s id
 -- @realm shared
 function Type:GetID()
@@ -308,6 +350,26 @@ function RegisterType(id, is_value_valid, serialize, deserialize, compare_values
 	end
 
 	local type = Type:Create(id, is_value_valid, serialize, deserialize, compare_values)
+
+	types[id] = type
+	return type
+end
+
+---
+-- creates and registers a new enum Type
+-- @param string id the new Type's id
+-- @param table The string values this enum contains initially
+-- @note If a type with the same name already exists, it will return the old type.
+-- @realm shared
+function RegisterEnumType(id, values)
+	local old_type = types[id]
+
+	if old_type then
+		ErrorNoHalt("[PACOMAN] Type with id '" .. id .. "' already exists.\n")
+		return old_type
+	end
+
+	local type = Type:CreateEnum(id, values)
 
 	types[id] = type
 	return type
