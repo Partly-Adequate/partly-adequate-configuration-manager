@@ -242,53 +242,6 @@ function Type:Create(id, is_value_valid, serialize, deserialize, compare_values)
 end
 
 ---
--- creates a new <code>Type</code>
--- @param string id the new <code>Type</code>'s id
--- @param table The string values this enum contains initially
--- @return Type the new type
--- @realm shared
-function Type:CreateEnum(id, values)
-	new_type = {}
-	setmetatable(new_type, self)
-
-	new_type.id = id
-	new_type.serialize = tostring
-	new_type.deserialize = tostring
-	new_type.compare_values = nil
-
-	new_type.is_enum = true
-	new_type.values = {}
-	new_type.value_indices = {}
-
-	for i = 1, #values do
-		new_type.values[i] = values[i]
-		new_type.value_indices[values[i]] = i
-	end
-
-	new_type.is_value_valid = function(value)
-		return new_type.value_indices[value] or false
-	end
-
-	new_type.AddValue = function(self, value)
-		if(init_stage < INIT_STAGE_ENUM_VALUES) then
-			ErrorNoHaltWithStack("Trying to register enum value before PACOMAN_RegisterEnumValues hook. Please notify the addon author.")
-		end
-		if(init_stage > INIT_STAGE_ENUM_VALUES) then
-			ErrorNoHaltWithStack("Trying to register enum value after PACOMAN_RegisterEnumValues hook. Please notify the addon author.")
-		end
-		if self.value_indices[value] then
-			return false
-		end
-		local index = #self.values + 1
-		self.values[index] = value
-		self.value_indices[value] = index
-		return true
-	end
-
-	return new_type
-end
-
----
 -- @return string this <code>Type</code>'s id
 -- @realm shared
 function Type:GetID()
@@ -344,6 +297,69 @@ function Type:CompareValues(value_1, value_2)
 	return self.compare_values(value_1, value_2)
 end
 
+local EnumType = {}
+EnumType.is_enum = true
+EnumType.__index = EnumType
+setmetatable(EnumType, Type)
+
+---
+-- creates a new <code>Type</code>
+-- @param string id the new <code>Type</code>'s id
+-- @param table The string values this enum contains initially
+-- @return Type the new type
+-- @realm shared
+function EnumType:Create(id, values)
+	new_enum = {}
+	setmetatable(new_enum, self)
+
+	new_enum.id = id
+	new_enum.values = {}
+	new_enum.value_indices = {}
+
+	for i = 1, #values do
+		new_enum.values[i] = values[i]
+		new_enum.value_indices[values[i]] = i
+	end
+
+	return new_enum
+end
+
+function EnumType:Serialize(value)
+	return value
+end
+
+function EnumType:Deserialize(value)
+	return value
+end
+
+function EnumType:IsComparable()
+	return false
+end
+
+function EnumType:IsValueValid(value)
+	return self.value_indices[value] or false
+end
+
+function EnumType:AddValue(value)
+	if(init_stage < INIT_STAGE_ENUM_VALUES) then
+		ErrorNoHaltWithStack("Trying to register enum value before PACOMAN_RegisterEnumValues hook. Please notify the addon author.")
+	end
+
+	if(init_stage > INIT_STAGE_ENUM_VALUES) then
+		ErrorNoHaltWithStack("Trying to register enum value after PACOMAN_RegisterEnumValues hook. Please notify the addon author.")
+	end
+
+	if self.value_indices[value] then
+		ErrorNoHaltWithStack("Enum value " .. value .. " already exists in enum " .. self.id .. ". Ignoring...")
+		return
+	end
+
+	local index = #self.values + 1
+	self.values[index] = value
+	self.value_indices[value] = index
+	return true
+end
+
 local types = {}
 
 ---
@@ -389,7 +405,7 @@ function RegisterEnumType(id, values)
 		return old_type
 	end
 
-	local type = Type:CreateEnum(id, values)
+	local type = EnumType:Create(id, values)
 
 	types[id] = type
 	return type
