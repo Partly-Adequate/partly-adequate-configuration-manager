@@ -250,7 +250,6 @@ function Type:CreateEnum(id, values)
 	new_type.compare_values = nil
 
 	new_type.is_enum = true
-	new_type.default_value = default_value
 	new_type.values = {}
 	new_type.value_indices = {}
 
