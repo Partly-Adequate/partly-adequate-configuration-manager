@@ -510,7 +510,9 @@ Game_Property.__index = Game_Property
 -- @param any value the current value of this Game_Property
 -- @return the new Game_Property
 function Game_Property:Create(id, gp_type, value)
-	if not gp_type:IsValueValid(value) then return end
+	if not gp_type:IsValueValid(value) then
+		return
+	end
 
 	local game_property = {}
 	setmetatable(game_property, self)
