@@ -12,6 +12,13 @@ local setting_separator = "."
 
 local callback_lists = {}
 
+INIT_STAGE_TYPES = 0
+INIT_STAGE_ENUM_VALUES = 1
+INIT_STAGE_GAME_PROPERTIES = 2
+INIT_STAGE_DONE = 3
+
+init_stage = INIT_STAGE_TYPES
+
 sql.Query("CREATE TABLE IF NOT EXISTS pacoman_values (full_id TEXT PRIMARY KEY, id TEXT NOT NULL, type TEXT NOT NULL, value TEXT NOT NULL, depends_on TEXT, parent_id TEXT)")
 
 local function SaveSettingInDatabase(setting)
@@ -263,6 +270,12 @@ function Type:CreateEnum(id, values)
 	end
 
 	new_type.AddValue = function(self, value)
+		if(init_stage < INIT_STAGE_ENUM_VALUES) then
+			ErrorNoHaltWithStack("Trying to register enum value before PACOMAN_RegisterEnumValues hook. Please notify the addon author.")
+		end
+		if(init_stage > INIT_STAGE_ENUM_VALUES) then
+			ErrorNoHaltWithStack("Trying to register enum value after PACOMAN_RegisterEnumValues hook. Please notify the addon author.")
+		end
 		if self.value_indices[value] then
 			return false
 		end
@@ -341,6 +354,10 @@ local types = {}
 -- @note If a type with the same name already exists, it will return the old type.
 -- @realm shared
 function RegisterType(id, is_value_valid, serialize, deserialize, compare_values)
+	if(init_stage > INIT_STAGE_TYPES) then
+		ErrorNoHaltWithStack("Trying to register type after PACOMAN_RegisterTypes hook. Please notify the addon author.")
+	end
+
 	local old_type = types[id]
 
 	if old_type then
@@ -361,6 +378,10 @@ end
 -- @note If a type with the same name already exists, it will return the old type.
 -- @realm shared
 function RegisterEnumType(id, values)
+	if(init_stage > INIT_STAGE_TYPES) then
+		ErrorNoHaltWithStack("Trying to register type after PACOMAN_RegisterTypes hook. Please notify the addon author.")
+	end
+
 	local old_type = types[id]
 
 	if old_type then
@@ -554,6 +575,13 @@ end
 -- @note value has to be valid in regards to the specified Type
 -- @realm shared
 function RegisterGameProperty(id, gp_type, value)
+	if(init_stage < INIT_STAGE_GAME_PROPERTIES) then
+		ErrorNoHaltWithStack("Trying to register game property before PACOMAN_RegisterGameProperties hook. Please notify the addon author.")
+	end
+	if(init_stage > INIT_STAGE_GAME_PROPERTIES) then
+		ErrorNoHaltWithStack("Trying to register game property after PACOMAN_RegisterGameProperties hook. Please notify the addon author.")
+	end
+
 	old_gp_index = game_property_indices[id]
 
 	if old_gp_index then
@@ -1111,6 +1139,18 @@ function Namespace:OnSettingRemoved(setting)
 
 end
 
+hook.Add("PreGamemodeLoaded", "PACOMAN_Initialize",
+	function()
+		hook.Run("PACOMAN_RegisterTypes")
+		init_stage = INIT_STAGE_ENUM_VALUES
+		hook.Run("PACOMAN_RegisterEnumValues")
+		init_stage = INIT_STAGE_GAME_PROPERTIES
+		hook.Run("PACOMAN_RegisterGameProperties")
+		init_stage = INIT_STAGE_DONE
+		hook.Run("PACOMAN_Initialized")
+	end
+)
+
 if SERVER then
 	local server_settings_id = "server_settings"
 	local client_overrides_id = "client_overrides"
@@ -1128,31 +1168,13 @@ if SERVER then
 	util.AddNetworkString("PACOMAN_ChangeRequest")
 
 	---
-	-- Cteates a Game_Property on all clients/the specified client
-	-- @param Game_Property game_property the Game_Property to create
-	-- @param player ply the client to create the Game_Property on (nil to create it on all players)
-	-- @local
-	local function SendGamePropertyCreation(game_property, ply)
-		net.Start("PACOMAN_StateUpdate")
-		net.WriteUInt(0, 3)
-		net.WriteString(game_property.id)
-		net.WriteString(game_property.type.id)
-		net.WriteString(game_property.type:Serialize(game_property.value))
-		if ply then
-			net.Send(ply)
-		else
-			net.Broadcast()
-		end
-	end
-
-	---
 	-- Changes the value of a Game_Property on all clients/the specified client
 	-- @param Game_Property game_property the Game_Property to change the value of
 	-- @param player ply the client to send the change to (nil to send it to all players)
 	-- @local
-	local function SendGamePropertyChange(game_property, ply)
+	local function SendGamePropertyValueChange(game_property, ply)
 		net.Start("PACOMAN_StateUpdate")
-		net.WriteUInt(1, 3)
+		net.WriteUInt(0, 3)
 		net.WriteString(game_property.id)
 		net.WriteString(game_property.type:Serialize(game_property.value))
 		if ply then
@@ -1170,7 +1192,7 @@ if SERVER then
 	-- @local
 	local function SendNamespaceCreation(parent, child, ply)
 		net.Start("PACOMAN_StateUpdate")
-		net.WriteUInt(2, 3)
+		net.WriteUInt(1, 3)
 		net.WriteString(parent.full_id)
 		net.WriteString(child.id)
 		if ply then
@@ -1190,7 +1212,7 @@ if SERVER then
 	local function SendSettingCreation(parent, setting, ply)
 		local s_type = setting.type
 		net.Start("PACOMAN_StateUpdate")
-		net.WriteUInt(3, 3)
+		net.WriteUInt(2, 3)
 		net.WriteString(parent.full_id)
 		net.WriteString(setting.id)
 		net.WriteString(s_type.id)
@@ -1212,7 +1234,7 @@ if SERVER then
 	-- @local
 	local function SendSettingRemoval(parent, setting, ply)
 		net.Start("PACOMAN_StateUpdate")
-		net.WriteUInt(4, 3)
+		net.WriteUInt(3, 3)
 		net.WriteString(parent.full_id)
 		net.WriteString(setting.id)
 		if ply then
@@ -1229,7 +1251,7 @@ if SERVER then
 	-- @local
 	local function SendSettingValueChange(setting, ply)
 		net.Start("PACOMAN_StateUpdate")
-		net.WriteUInt(5, 3)
+		net.WriteUInt(4, 3)
 		net.WriteString(setting.full_id)
 		net.WriteString(setting.type:Serialize(setting.value))
 		if ply then
@@ -1247,7 +1269,7 @@ if SERVER then
 	local function SendSettingDependencyChange(setting, ply)
 		local game_property = setting.depends_on
 		net.Start("PACOMAN_StateUpdate")
-		net.WriteUInt(6, 3)
+		net.WriteUInt(5, 3)
 		net.WriteString(setting.full_id)
 		if game_property then
 			net.WriteBool(true)
@@ -1374,7 +1396,7 @@ if SERVER then
 		if steam_id and synced_clients[steam_id] then return end
 
 		for i = 1, #game_properties do
-			SendGamePropertyCreation(game_properties[i], ply)
+			SendGamePropertyValueChange(game_properties[i], ply)
 		end
 
 		SendNamespace(server_settings, ply)
@@ -1396,15 +1418,13 @@ if SERVER then
 
 	---
 	-- Gets called whenever a Game_Property is registered
-	-- Sends the required information to the client and adds change callbacks
+	-- Adds value change callbacks
 	-- @param game_property the Game_Property that was registered
 	-- @local
 	local function OnServerGamePropertyRegistered(game_property)
 		game_property:AddCallback("update_clients", function()
-			SendGamePropertyChange(game_property)
+			SendGamePropertyValueChange(game_property)
 		end)
-
-		SendGamePropertyCreation(game_property, nil)
 	end
 
 	OnGamePropertyRegistered = OnServerGamePropertyRegistered
@@ -1438,7 +1458,7 @@ if SERVER then
 
 		print("[PACOMAN] Client overrides loaded.")
 	end
-	hook.Add("Initialize", "PACOMAN_LoadClientOverrides", LoadClientOverrides)
+	hook.Add("PACOMAN_Initialized", "PACOMAN_LoadClientOverrides", LoadClientOverrides)
 
 	---
 	-- Processes an override addition request
@@ -1630,9 +1650,7 @@ else
 	end
 
 	local function OnClientSettingAdded(self, setting)
-		if full_state_received then
 			LoadSettingFromDatabase(setting)
-		end
 
 		setting.OnValueChanged = function(s)
 			SaveSettingInDatabase(s)
@@ -1796,29 +1814,11 @@ else
 	end
 
 	---
-	-- Processes a Game_Property creation
-	-- Registers a new Game_Property on success
-	-- @param number len the remaining length of the netmessage
-	-- @local
-	local function ReceiveGamePropertyCreation(len)
-		local id = net.ReadString()
-		local gp_type = GetType(net.ReadString())
-		local serialized_value = net.ReadString()
-
-		if not gp_type then return end
-
-		local value = gp_type:Deserialize(serialized_value)
-		if value == nil then return end
-
-		RegisterGameProperty(id, gp_type, value)
-	end
-
-	---
 	-- Processes a Game_Property change
 	-- Changes the value of an existing Game_Property on success
 	-- @param number len the remaining length of the netmessage
 	-- @local
-	local function ReceiveGamePropertyChange(len)
+	local function ReceiveGamePropertyValueChange(len)
 		local game_property = GetGameProperty(net.ReadString())
 		if not game_property then return end
 
@@ -1919,8 +1919,7 @@ else
 	end
 
 	local update_processors = {
-		ReceiveGamePropertyCreation,
-		ReceiveGamePropertyChange,
+		ReceiveGamePropertyValueChange,
 		ReceiveNamespaceCreation,
 		ReceiveSettingCreation,
 		ReceiveSettingRemoval,
@@ -1950,34 +1949,13 @@ else
 	-- @local
 	local function FullStateReceived(len)
 		full_state_received = true
-
-		-- stack creation
-		local to_load = {client_settings}
-		local to_load_count = 1
-		while to_load_count > 0 do
-			-- pop
-			local namespace = to_load[to_load_count]
-			to_load[to_load_count] = nil
-			to_load_count = to_load_count - 1
-
-			for i = 1, #namespace.settings do
-				LoadSettingFromDatabase(namespace.settings[i])
-			end
-			for i = 1, #namespace.children do
-				-- push
-				to_load[to_load_count + i] = namespace.children[i]
-			end
-			-- update count
-			to_load_count = to_load_count + #namespace.children
-		end
-
 		print("[PACOMAN] Full state update received.")
 		hook.Run("PacomanPostServerStateReceived")
 	end
 	net.Receive("PACOMAN_StateRequest", FullStateReceived)
 
 	---
-	-- Checks if the server uses Pacoman and requests the server to send the full state (all Game_Properties and Settings)
+	-- Checks if the server uses Pacoman and requests the server to send the full state (all Game_Property values and Settings)
 	-- @local
 	local function RequestFullState()
 		net.Start("PACOMAN_StateRequest")
