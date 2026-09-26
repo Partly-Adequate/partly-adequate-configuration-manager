@@ -1940,7 +1940,7 @@ else
 		local update_processor = update_processors[update_type]
 		if not update_processor then return end
 
-		update_processor(len - 1)
+		update_processor(len - 3)
 	end
 	net.Receive("PACOMAN_StateUpdate", ReceiveStateUpdate)
 
