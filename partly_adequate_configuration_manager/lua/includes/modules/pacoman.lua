@@ -1652,7 +1652,7 @@ else
 	end
 
 	local function OnClientSettingAdded(self, setting)
-			LoadSettingFromDatabase(setting)
+		LoadSettingFromDatabase(setting)
 
 		setting.OnValueChanged = function(s)
 			SaveSettingInDatabase(s)
@@ -1688,29 +1688,33 @@ else
 	client_settings.OnSettingRemoved = OnClientSettingRemoved
 
 	local function OnClientOverrideAdded(self, setting)
-		-- mark callback id as overriden
-		local full_id = setting.full_id
-		local setting_id = OverrideIDToClientSettingID(full_id)
-		overrides[setting_id] = true
+		if setting.parent == nil then
+			-- mark callback id as overriden
+			local full_id = setting.full_id
+			local original_setting_id = OverrideIDToClientSettingID(full_id)
+			local original_setting = all_settings[original_setting_id]
 
-		if not all_settings[setting_id] then
-			ErrorNoHalt("[PACOMAN] Attempted to add a Client override for a Setting that doesn't exist! (" .. full_id .. ")\n")
-			return
+			if not original_setting then
+				ErrorNoHalt("[PACOMAN] Attempted to add a Client override for a Setting that doesn't exist! (" .. full_id .. ")\n")
+			end
+
+			overrides[original_setting_id] = true
+
+			setting.CallCallbacks = function(s)
+				-- call callbacks for self
+				local new_value = s.active_value
+				CallCallbacks(full_id, new_value)
+
+				-- call callbacks from original setting
+				CallCallbacks(original_setting_id, new_value)
+			end
+
+			setting.description = original_setting.description
+
+			-- call callbacks for original setting
+			CallCallbacks(original_setting_id, self.active_value)
 		end
 
-		setting.CallCallbacks = function(s)
-			-- call callbacks for self
-			local new_value = s.active_value
-			CallCallbacks(full_id, new_value)
-
-			-- call callbacks from original setting
-			CallCallbacks(setting_id, new_value)
-		end
-
-		setting.description = all_settings[setting_id].description
-
-		-- call callbacks for original setting
-		CallCallbacks(setting_id, self.active_value)
 	end
 
 	local function OnClientOverrideRemoved(self, setting)
