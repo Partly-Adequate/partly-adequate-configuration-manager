@@ -1191,6 +1191,8 @@ if SERVER then
 	-- @param player ply the client to send the change to (nil to send it to all players)
 	-- @local
 	local function SendGamePropertyValueChange(game_property, ply)
+		if not ply and #synced_clients == 0 then return end
+
 		net.Start("PACOMAN_StateUpdate")
 		net.WriteUInt(0, 3)
 		net.WriteString(game_property.id)
@@ -1209,6 +1211,8 @@ if SERVER then
 	-- @param player ply the client to create the Namespace on (nil to create it on all players)
 	-- @local
 	local function SendNamespaceCreation(parent, child, ply)
+		if not ply and #synced_clients == 0 then return end
+
 		net.Start("PACOMAN_StateUpdate")
 		net.WriteUInt(1, 3)
 		net.WriteString(parent.full_id)
@@ -1228,6 +1232,8 @@ if SERVER then
 	-- @note the parent can also be a Setting. The Setting will be created as a source of the parent setting then
 	-- @local
 	local function SendSettingCreation(parent, setting, ply)
+		if not ply and #synced_clients == 0 then return end
+
 		local s_type = setting.type
 		net.Start("PACOMAN_StateUpdate")
 		net.WriteUInt(2, 3)
@@ -1251,6 +1257,8 @@ if SERVER then
 	-- @note the parent can also be a Setting. The Setting will be removed as a source from the parent setting then
 	-- @local
 	local function SendSettingRemoval(parent, setting, ply)
+		if not ply and #synced_clients == 0 then return end
+
 		net.Start("PACOMAN_StateUpdate")
 		net.WriteUInt(3, 3)
 		net.WriteString(parent.full_id)
@@ -1268,6 +1276,8 @@ if SERVER then
 	-- @param player ply the client to send the change to (nil to send it to all players)
 	-- @local
 	local function SendSettingValueChange(setting, ply)
+		if not ply and #synced_clients == 0 then return end
+
 		net.Start("PACOMAN_StateUpdate")
 		net.WriteUInt(4, 3)
 		net.WriteString(setting.full_id)
@@ -1285,6 +1295,8 @@ if SERVER then
 	-- @param player ply the client to send the change to (nil to send it to all players)
 	-- @local
 	local function SendSettingDependencyChange(setting, ply)
+		if not ply and #synced_clients == 0 then return end
+
 		local game_property = setting.depends_on
 		net.Start("PACOMAN_StateUpdate")
 		net.WriteUInt(5, 3)
